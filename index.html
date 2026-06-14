@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Football League Manager</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #1b4332;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        input, select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[type="text"] { flex: 1; }
+        button {
+            padding: 10px 20px;
+            background-color: #2d6a4f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1b4332; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th { background-color: #2d6a4f; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .fixture-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .score-input { width: 50px; text-align: center; }
+        .team-label { width: 35%; font-weight: 500; }
+        .team-label.home { text-align: right; }
+        .team-label.away { text-align: left; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏆 Custom League Manager</h1>
+
+    <div class="card">
+        <h2>1. Add Teams</h2>
+        <div class="form-group">
+            <input type="text" id="teamInput" placeholder="Enter team name (e.g., FC Barcelona)">
+            <button onclick="addTeam()">Add Team</button>
+        </div>
+        <div id="teamList" style="font-style: italic; color: #666;">No teams added yet.</div>
+    </div>
+
+    <div class="card">
+        <h2>2. Create a Fixture</h2>
+        <div class="form-group">
+            <select id="homeSelect"><option value="">-- Home Team --</option></select>
+            <span>vs</span>
+            <select id="awaySelect"><option value="">-- Away Team --</option></select>
+            <button onclick="addFixture()">Add Fixture</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 League Table</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th style="text-align: left;">Team</th>
+                    <th>P</th>
+                    <th>W</th>
+                    <th>D</th>
+                    <th>L</th>
+                    <th>GD</th>
+                    <th>Pts</th>
+                </tr>
+            </thead>
+            <tbody id="leagueTableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>📅 Match Fixtures & Scores</h2>
+        <div id="fixturesContainer">
+            </div>
+    </div>
+</div>
+
+<script>
+    // App State
+    let teams = [];
+    let fixtures = [];
+
+    // Add a new team
+    function addTeam() {
+        const input = document.getElementById('teamInput');
+        const name = input.value.trim();
+        
+        if (!name) return alert('Please enter a team name.');
+        if (teams.some(t => t.name.toLowerCase() === name.toLowerCase())) return alert('Team already exists!');
+
+        // Team object template
+        teams.push({
+            name: name,
+            played: 0, won: 0, drawn: 0, lost: 0,
+            gf: 0, ga: 0, gd: 0, pts: 0
+        });
+
+        input.value = '';
+        updateTeamDropdowns();
+        renderTeamList();
+        renderTable();
+    }
+
+    // Render simple list of added teams
+    function renderTeamList() {
+        const container = document.getElementById('teamList');
+        if(teams.length === 0) {
+            container.innerText = "No teams added yet.";
+        } else {
+            container.innerText = "Current Teams: " + teams.map(t => t.name).join(', ');
+        }
+    }
+
+    // Keep dropdown selections updated with current teams
+    function updateTeamDropdowns() {
+        const homeSel = document.getElementById('homeSelect');
+        const awaySel = document.getElementById('awaySelect');
+        
+        homeSel.innerHTML = '<option value="">-- Home Team --</option>';
+        awaySel.innerHTML = '<option value="">-- Away Team --</option>';
+
+        teams.forEach(team => {
+            homeSel.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+            awaySel.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+        });
+    }
+
+    // Add a fixture between two teams
+    function addFixture() {
+        const home = document.getElementById('homeSelect').value;
+        const away = document.getElementById('awaySelect').value;
+
+        if (!home || !away) return alert('Select both teams.');
+        if (home === away) return alert('A team cannot play against itself.');
+
+        fixtures.push({
+            home: home,
+            away: away,
+            homeScore: '',
+            awayScore: ''
+        });
+
+        renderFixtures();
+    }
+
+    // Update individual scores when inputs change
+    function updateScore(index, side, val) {
+        const score = val === '' ? '' : parseInt(val);
+        if (side === 'home') fixtures[index].homeScore = score;
+        if (side === 'away') fixtures[index].awayScore = score;
+        
+        calculateTable();
+    }
+
+    // Recalculate stats for the entire table based on scores
+    function calculateTable() {
+        // Reset stats
+        teams.forEach(t => {
+            t.played = 0; t.won = 0; t.drawn = 0; t.lost = 0;
+            t.gf = 0; t.ga = 0; t.gd = 0; t.pts = 0;
+        });
+
+        // Loop through fixtures and add up stats
+        fixtures.forEach(f => {
+            if (f.homeScore !== '' && f.awayScore !== '' && !isNaN(f.homeScore) && !isNaN(f.awayScore)) {
+                const homeTeam = teams.find(t => t.name === f.home);
+                const awayTeam = teams.find(t => t.name === f.away);
+
+                if (homeTeam && awayTeam) {
+                    homeTeam.played++;
+                    awayTeam.played++;
+                    homeTeam.gf += f.homeScore;
+                    homeTeam.ga += f.awayScore;
+                    awayTeam.gf += f.awayScore;
+                    awayTeam.ga += f.homeScore;
+
+                    if (f.homeScore > f.awayScore) {
+                        homeTeam.won++; homeTeam.pts += 3;
+                        awayTeam.lost++;
+                    } else if (f.homeScore < f.awayScore) {
+                        awayTeam.won++; awayTeam.pts += 3;
+                        homeTeam.lost++;
+                    } else {
+                        homeTeam.drawn++; homeTeam.pts += 1;
+                        awayTeam.drawn++; awayTeam.pts += 1;
+                    }
+                }
+            }
+        });
+
+        // Calculate Goal Difference for all teams
+        teams.forEach(t => t.gd = t.gf - t.ga);
+
+        // Sort table: Points first, then Goal Difference, then Goals For
+        teams.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+
+        renderTable();
+    }
+
+    // Update Table UI
+    function renderTable() {
+        const tbody = document.getElementById('leagueTableBody');
+        tbody.innerHTML = '';
+
+        teams.forEach((team, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${index + 1}</strong></td>
+                    <td style="text-align: left;">${team.name}</td>
+                    <td>${team.played}</td>
+                    <td>${team.won}</td>
+                    <td>${team.drawn}</td>
+                    <td>${team.lost}</td>
+                    <td>${team.gd > 0 ? '+' + team.gd : team.gd}</td>
+                    <td><strong>${team.pts}</strong></td>
+                </tr>
+            `;
+        });
+    }
+
+    // Update Fixtures UI
+    function renderFixtures() {
+        const container = document.getElementById('fixturesContainer');
+        container.innerHTML = '';
+
+        fixtures.forEach((f, idx) => {
+            container.innerHTML += `
+                <div class="fixture-row">
+                    <span class="team-label home">${f.home}</span>
+                    <input type="number" class="score-input" min="0" value="${f.homeScore}" oninput="updateScore(${idx}, 'home', this.value)">
+                    <span>-</span>
+                    <input type="number" class="score-input" min="0" value="${f.awayScore}" oninput="updateScore(${idx}, 'away', this.value)">
+                    <span class="team-label away">${f.away}</span>
+                </div>
+            `;
+        });
+    }
+</script>
+</body>
+</html>
