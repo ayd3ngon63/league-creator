@@ -32,6 +32,12 @@
             gap: 10px;
             margin-bottom: 15px;
         }
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
         input, select {
             padding: 10px;
             border: 1px solid #ccc;
@@ -50,6 +56,10 @@
             transition: background 0.2s;
         }
         button:hover { background-color: #1b4332; }
+        button.btn-save { background-color: #4361ee; }
+        button.btn-save:hover { background-color: #3f37c9; }
+        button.btn-clear { background-color: #e63946; }
+        button.btn-clear:hover { background-color: #b5179e; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -79,6 +89,11 @@
 
 <div class="container">
     <h1>🏆 Custom League Manager</h1>
+
+    <div class="action-buttons">
+        <button class="btn-save" onclick="saveLeagueData()">💾 Save Data</button>
+        <button class="btn-clear" onclick="clearLeagueData()">❌ Clear All Data</button>
+    </div>
 
     <div class="card">
         <h2>1. Add Teams</h2>
@@ -131,6 +146,11 @@
     let teams = [];
     let fixtures = [];
 
+    // Automatically load data when the app opens
+    window.onload = function() {
+        loadLeagueData();
+    };
+
     // Add a new team
     function addTeam() {
         const input = document.getElementById('teamInput');
@@ -139,7 +159,6 @@
         if (!name) return alert('Please enter a team name.');
         if (teams.some(t => t.name.toLowerCase() === name.toLowerCase())) return alert('Team already exists!');
 
-        // Team object template
         teams.push({
             name: name,
             played: 0, won: 0, drawn: 0, lost: 0,
@@ -149,7 +168,7 @@
         input.value = '';
         updateTeamDropdowns();
         renderTeamList();
-        renderTable();
+        calculateTable();
     }
 
     // Render simple list of added teams
@@ -192,6 +211,7 @@
         });
 
         renderFixtures();
+        calculateTable(); // Live updates table shell
     }
 
     // Update individual scores when inputs change
@@ -242,18 +262,19 @@
         // Calculate Goal Difference for all teams
         teams.forEach(t => t.gd = t.gf - t.ga);
 
-        // Sort table: Points first, then Goal Difference, then Goals For
-        teams.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+        // Sort table copy so we don't ruin the display order setup
+        let sortedTeams = [...teams];
+        sortedTeams.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 
-        renderTable();
+        renderTable(sortedTeams);
     }
 
     // Update Table UI
-    function renderTable() {
+    function renderTable(sortedTeams) {
         const tbody = document.getElementById('leagueTableBody');
         tbody.innerHTML = '';
 
-        teams.forEach((team, index) => {
+        sortedTeams.forEach((team, index) => {
             tbody.innerHTML += `
                 <tr>
                     <td><strong>${index + 1}</strong></td>
@@ -285,6 +306,43 @@
                 </div>
             `;
         });
+    }
+
+    // SAVE DATA TO LOCALSTORAGE
+    function saveLeagueData() {
+        localStorage.setItem('leagueTeams', JSON.stringify(teams));
+        localStorage.setItem('leagueFixtures', JSON.stringify(fixtures));
+        alert('🏆 League data saved successfully!');
+    }
+
+    // LOAD DATA FROM LOCALSTORAGE
+    function loadLeagueData() {
+        const savedTeams = localStorage.getItem('leagueTeams');
+        const savedFixtures = localStorage.getItem('leagueFixtures');
+
+        if (savedTeams && savedFixtures) {
+            teams = JSON.parse(savedTeams);
+            fixtures = JSON.parse(savedFixtures);
+            
+            updateTeamDropdowns();
+            renderTeamList();
+            renderFixtures();
+            calculateTable();
+        }
+    }
+
+    // WIPE LOCALSTORAGE
+    function clearLeagueData() {
+        if (confirm('Are you sure you want to delete all data? This will reset your current table completely.')) {
+            localStorage.removeItem('leagueTeams');
+            localStorage.removeItem('leagueFixtures');
+            teams = [];
+            fixtures = [];
+            updateTeamDropdowns();
+            renderTeamList();
+            renderFixtures();
+            calculateTable();
+        }
     }
 </script>
 </body>
